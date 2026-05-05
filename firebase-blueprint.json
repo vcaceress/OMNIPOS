@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Producto",
+      "description": "Un artículo disponible para la venta en el sistema POS.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nombre del producto" },
+        "price": { "type": "number", "description": "Precio unitario de venta" },
+        "purchasePrice": { "type": "number", "description": "Precio de compra al proveedor" },
+        "supplier": { "type": "string", "description": "Nombre del proveedor" },
+        "brand": { "type": "string", "description": "Marca del producto" },
+        "category": { "type": "string", "description": "ID o nombre de la categoría" },
+        "stock": { "type": "integer", "description": "Cantidad actual en inventario" },
+        "imageUrl": { "type": "string", "format": "uri", "description": "URL de la imagen del producto" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "category", "stock"]
+    },
+    "Brand": {
+      "title": "Marca",
+      "description": "Marca del fabricante del producto.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Sale": {
+      "title": "Venta",
+      "description": "Un registro de transacción completada.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "integer" }
+            }
+          }
+        },
+        "total": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "folio": { "type": "integer", "description": "Número consecutivo de la venta" },
+        "paymentMethods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["Efectivo", "Tarjeta", "Transferencia", "Otro"] },
+              "amount": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["items", "total", "timestamp", "userId", "paymentMethods"]
+    },
+    "Category": {
+      "title": "Categoría",
+      "description": "Categorización de productos.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Client": {
+      "title": "Cliente",
+      "description": "Información de contacto de un cliente.",
+      "type": "object",
+      "properties": {
+        "clientNumber": { "type": "integer", "description": "Número único de cliente" },
+        "name": { "type": "string", "description": "Nombre completo" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "salonName": { "type": "string", "description": "Nombre del salón de belleza" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "AppSettings": {
+      "title": "Configuración de la Aplicación",
+      "description": "Ajustes globales del sistema.",
+      "type": "object",
+      "properties": {
+        "nextFolio": { "type": "integer", "description": "Siguiente número de folio a asignar" },
+        "nextClientNumber": { "type": "integer", "description": "Siguiente número de cliente a asignar" },
+        "showWebStore": { "type": "boolean", "description": "Habilitar o deshabilitar la tienda web" },
+        "ticket": { 
+          "type": "object",
+          "properties": {
+            "companyName": { "type": "string" },
+            "fiscalName": { "type": "string" },
+            "address": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string" },
+            "logoUrl": { "type": "string" },
+            "footerMessage": { "type": "string" },
+            "secondaryFooterMessage": { "type": "string" },
+            "showLogo": { "type": "boolean" },
+            "showFiscalName": { "type": "boolean" },
+            "showAddress": { "type": "boolean" },
+            "showPhone": { "type": "boolean" },
+            "showEmail": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["nextFolio", "nextClientNumber"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Inventario de productos"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Historial de transacciones"
+    },
+    "categories": {
+      "schema": "Category",
+      "description": "Categorías de productos"
+    },
+    "brands": {
+      "schema": "Brand",
+      "description": "Marcas de productos"
+    },
+    "clients": {
+      "schema": "Client",
+      "description": "Directorio de clientes"
+    },
+    "settings": {
+      "schema": "AppSettings",
+      "description": "Configuración global"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "OmniPOS",
+  "description": "Un sistema de punto de venta moderno y responsivo para móviles y escritorio. Gestiona inventario, procesa ventas y rastrea el rendimiento con sincronización en tiempo real.",
+  "requestFramePermissions": []
+}

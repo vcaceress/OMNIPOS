@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - price: number (required, > 0)
+    //   - purchasePrice: number (optional, >= 0)
+    //   - supplier: string (optional, 1-100 chars)
+    //   - brand: string (optional, 1-100 chars)
+    //   - category: string (required)
+    //   - stock: number (required, >= 0)
+    //   - imageUrl: string (optional, URL)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: sales
+    // Fields:
+    //   - items: list (required, objects with productId, name, price, quantity)
+    //   - total: number (required, >= 0)
+    //   - timestamp: string (required, ISO 8601)
+    //   - userId: string (required, matches auth.uid)
+    //   - folio: number (optional, >= 0)
+    //
+    // Collection: categories
+    // Fields:
+    //   - name: string (required, 1-50 chars)
+    //
+    // Collection: clients
+    // Fields:
+    //   - clientNumber: number (optional, >= 0)
+    //   - name: string (required, 1-100 chars)
+    //   - email: string (optional, email)
+    //   - phone: string (optional)
+    //   - address: string (optional)
+    //   - salonName: string (optional, 1-100 chars)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: settings
+    // Fields:
+    //   - nextFolio: number (required, >= 0)
+    //   - nextClientNumber: number (required, >= 0)
+    //   - ticket: object (required)
+    //     - companyName: string (required)
+    //     - fiscalName: string (optional)
+    //     - address: string (optional)
+    //     - phone: string (optional)
+    //     - email: string (optional)
+    //     - logoUrl: string (optional)
+    //     - footerMessage: string (optional)
+    //     - secondaryFooterMessage: string (optional)
+    //     - showLogo: bool (required)
+    //     - showFiscalName: bool (required)
+    //     - showAddress: bool (required)
+    //     - showPhone: bool (required)
+    //     - showEmail: bool (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email_verified == true &&
+        (request.auth.token.email == "vcaceres@gmail.com");
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidProduct(data) {
+      return hasOnlyAllowedFields(['name', 'price', 'purchasePrice', 'supplier', 'brand', 'category', 'stock', 'imageUrl', 'createdAt']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.price is number && data.price > 0 &&
+        (!('purchasePrice' in data) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
+        (!('supplier' in data) || (data.supplier is string && data.supplier.size() <= 100)) &&
+        (!('brand' in data) || (data.brand is string && data.brand.size() <= 100)) &&
+        data.category is string && data.category.size() > 0 &&
+        data.stock is number && data.stock >= 0 &&
+        (!('imageUrl' in data) || isValidUrl(data.imageUrl)) &&
+        isValidDateString(data.createdAt);
+    }
+
+    function isValidSale(data) {
+      return hasOnlyAllowedFields(['items', 'total', 'timestamp', 'userId', 'folio', 'paymentMethods', 'clientId']) &&
+        data.items is list && data.items.size() > 0 &&
+        data.total is number && data.total >= 0 &&
+        isValidDateString(data.timestamp) &&
+        data.userId == request.auth.uid &&
+        (!('folio' in data) || (data.folio is number && data.folio >= 0)) &&
+        (!('clientId' in data) || (data.clientId is string || data.clientId == null)) &&
+        (!('paymentMethods' in data) || (data.paymentMethods is list));
+    }
+
+    function isValidTicket(data) {
+      return data is map &&
+        data.companyName is string && data.companyName.size() > 0 && data.companyName.size() <= 100 &&
+        (!('fiscalName' in data) || (data.fiscalName is string && data.fiscalName.size() <= 100)) &&
+        (!('address' in data) || (data.address is string && data.address.size() <= 200)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 100)) &&
+        (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 1500000)) &&
+        (!('footerMessage' in data) || (data.footerMessage is string && data.footerMessage.size() <= 200)) &&
+        (!('secondaryFooterMessage' in data) || (data.secondaryFooterMessage is string && data.secondaryFooterMessage.size() <= 200)) &&
+        data.showLogo is bool &&
+        data.showFiscalName is bool &&
+        data.showAddress is bool &&
+        data.showPhone is bool &&
+        data.showEmail is bool;
+    }
+
+    function isValidSettings(data) {
+      return hasOnlyAllowedFields(['nextFolio', 'nextClientNumber', 'ticket', 'showWebStore']) &&
+        data.nextFolio is number && data.nextFolio >= 0 &&
+        data.nextClientNumber is number && data.nextClientNumber >= 0 &&
+        (!('ticket' in data) || isValidTicket(data.ticket)) &&
+        (!('showWebStore' in data) || data.showWebStore is bool);
+    }
+
+    function isValidCategory(data) {
+      return hasOnlyAllowedFields(['name']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 50;
+    }
+
+    function isValidBrand(data) {
+      return hasOnlyAllowedFields(['name']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 50;
+    }
+
+    function isValidClient(data) {
+      return hasOnlyAllowedFields(['name', 'email', 'phone', 'address', 'salonName', 'createdAt', 'clientNumber', 'password']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        (!('email' in data) || isValidEmail(data.email)) &&
+        (!('phone' in data) || data.phone is string) &&
+        (!('address' in data) || data.address is string) &&
+        (!('salonName' in data) || (data.salonName is string && data.salonName.size() <= 100)) &&
+        (!('clientNumber' in data) || (data.clientNumber is number && data.clientNumber >= 0)) &&
+        (!('password' in data) || (data.password is string && data.password.size() <= 100)) &&
+        isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /sales/{saleId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidSale(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidCategory(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /brands/{brandId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidBrand(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidClient(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidSettings(request.resource.data);
+    }
+  }
+}
